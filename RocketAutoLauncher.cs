@@ -11,6 +11,9 @@ public class RocketAutoLauncher : MonoBehaviour
     public TMP_InputField inputZ;
     public Button launchButton;
 
+    [Header("Mass Input UI")]
+    public TMP_InputField massInputField;
+
     [Header("Output UI")]
     public TMP_Text angleText;
     public TMP_Text speedText;
@@ -29,13 +32,20 @@ public class RocketAutoLauncher : MonoBehaviour
     public float angleMin = 20f;
     public float angleMax = 80f;
     public float speedMin = 5f;
-    public float speedMax = 100f;
+    public float speedMax = 1000f;
     public float simulationTimeStep = 0.02f;
     public float acceptableDistance = 1.0f;
 
     [Header("Trajectory Line")]
     public LineRenderer trajectoryLine;
-    public int maxSteps = 500;
+    public int maxSteps = 1000;
+
+    [Header("Fuel Burn Settings")]
+    public float initialRocketMass = 1.0f;  // 초기 질량 (전체 질량)
+    public float dryMass = 0.5f;            // 연료가 다 떨어졌을 때의 질량 (최저 질량)
+    public float burnDuration = 2.0f;       // 연료 연소 시간 (초)
+    private float burnTimer = 0f;
+
 
     private Rigidbody rb;
     private bool launched = false;
@@ -48,6 +58,8 @@ public class RocketAutoLauncher : MonoBehaviour
         rb = GetComponent<Rigidbody>();
         Physics.gravity = new Vector3(0, -gravity, 0);
         launchButton.onClick.AddListener(OnLaunchButtonClicked);
+        rocketMass = initialRocketMass;
+        burnTimer = 0f;
 
         // 라인 렌더러 두께 조절 (더 얇게)
         if (trajectoryLine != null)
@@ -59,22 +71,35 @@ public class RocketAutoLauncher : MonoBehaviour
     }
 
     void OnLaunchButtonClicked()
+{
+    if (launched) return;
+
+    float x = float.Parse(inputX.text);
+    float y = float.Parse(inputY.text);
+    float z = float.Parse(inputZ.text);
+    targetPos = new Vector3(x, y, z);
+
+    // 질량 입력 처리
+    if (float.TryParse(massInputField.text, out float userMass)) 
     {
-        if (launched) return;
-
-        float x = float.Parse(inputX.text);
-        float y = float.Parse(inputY.text);
-        float z = float.Parse(inputZ.text);
-        targetPos = new Vector3(x, y, z);
-
-        if (targetTransform != null)
-        {
-            targetTransform.position = targetPos; // 타겟 오브젝트 이동
-        }
-
-        Debug.Log("Launching towards: " + targetPos);
-        TryAutoLaunch();
+        rocketMass = userMass;
+        rb.mass = userMass; // Rigidbody에도 적용
+        Debug.Log("입력된 질량: " + userMass + "kg");
     }
+    else
+    {
+        Debug.LogWarning("질량 입력 오류: 숫자를 입력해주세요.");
+        return;
+    }
+
+    if (targetTransform != null)
+    {
+        targetTransform.position = targetPos;
+    }
+
+    Debug.Log("Launching towards: " + targetPos);
+    TryAutoLaunch();
+}
 
     void TryAutoLaunch()
     {
@@ -149,6 +174,14 @@ public class RocketAutoLauncher : MonoBehaviour
     void FixedUpdate()
     {
         if (!launched) return;
+
+        // 연료 연소에 따른 질량 감소
+        if (burnTimer < burnDuration)
+        {
+            burnTimer += Time.fixedDeltaTime;
+            float t = Mathf.Clamp01(burnTimer / burnDuration);
+            rocketMass = Mathf.Lerp(initialRocketMass, dryMass, t);
+        }
 
         // 현재 속도
         Vector3 velocity = rb.linearVelocity;
