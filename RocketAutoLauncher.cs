@@ -29,9 +29,9 @@ public class RocketAutoLauncher : MonoBehaviour
     public float gravity = 9.81f;
 
     [Header("Launch Search")]
-    public float angleMin = 20f;
-    public float angleMax = 80f;
-    public float speedMin = 5f;
+    public float angleMin = 0f;
+    public float angleMax = 180f;
+    public float speedMin = 0f;
     public float speedMax = 1000f;
     public float simulationTimeStep = 0.02f;
     public float acceptableDistance = 1.0f;
